@@ -226,13 +226,31 @@ public class NestingRepository(IConfiguration config)
             new { IdNes = idNes });
     }
 
+    // ── Log ───────────────────────────────────────────────────────────────────
+    private async Task LogAsync(SqlConnection conn, string azione, int idNes,
+        string? macod, DateTime? dataPiano, int? seqPiano)
+    {
+        await conn.ExecuteAsync(@"
+            INSERT INTO XPIANO_LOG (IDNES, AZIONE, MACOD, DATPIANO, SEQPIANO, DTLOG)
+            VALUES (@IdNes, @Azione, @Macod, @DataPiano, @SeqPiano, GETDATE())",
+            new { IdNes = idNes, Azione = azione, Macod = macod,
+                  DataPiano = dataPiano, SeqPiano = seqPiano });
+    }
+
     // ── Salva / sposta ────────────────────────────────────────────────────────
     public async Task SalvaPianoAsync(SalvaPianoRequest req)
     {
         using var conn = CreateConnection();
+        // Determina se è un nuovo inserimento o uno spostamento
+        var vecchio = await conn.QueryFirstOrDefaultAsync<(string? Macod, DateTime? Dtexp)>(
+            "SELECT MACOD, DTEXP FROM A_NES WHERE IDNES = @IdNes", new { req.IdNes });
+        var azione = vecchio.Dtexp == null ? "PIANIFICATO" : "SPOSTATO";
+
         await conn.ExecuteAsync(
             "UPDATE A_NES SET MACOD = @MaCod, DTEXP = @DataPiano, XSEQPIANO = @SeqOrd WHERE IDNES = @IdNes",
             new { req.MaCod, DataPiano = req.DataPiano.Date, req.SeqOrd, req.IdNes });
+
+        await LogAsync(conn, azione, req.IdNes, req.MaCod, req.DataPiano.Date, req.SeqOrd);
     }
 
     // ── Rimuovi dal piano ─────────────────────────────────────────────────────
@@ -242,6 +260,8 @@ public class NestingRepository(IConfiguration config)
         await conn.ExecuteAsync(
             "UPDATE A_NES SET DTEXP = NULL, XSEQPIANO = NULL WHERE IDNES = @IdNes",
             new { IdNes = idNes });
+
+        await LogAsync(conn, "RIMOSSO", idNes, null, null, null);
     }
 
     // ── Riordina sequenza ─────────────────────────────────────────────────────
@@ -250,9 +270,13 @@ public class NestingRepository(IConfiguration config)
         using var conn = CreateConnection();
         for (int i = 0; i < req.IdNesOrdinati.Count; i++)
         {
+            var seq = i + 1;
             await conn.ExecuteAsync(
                 "UPDATE A_NES SET XSEQPIANO = @Seq WHERE IDNES = @IdNes",
-                new { Seq = i + 1, IdNes = req.IdNesOrdinati[i] });
+                new { Seq = seq, IdNes = req.IdNesOrdinati[i] });
+
+            await LogAsync(conn, "RIORDINATO", req.IdNesOrdinati[i],
+                req.MaCod, req.DataPiano.Date, seq);
         }
     }
 }

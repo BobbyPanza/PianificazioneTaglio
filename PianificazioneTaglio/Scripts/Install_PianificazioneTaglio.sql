@@ -80,6 +80,33 @@ PRINT 'Funzione dbo.xComputeTempoResiduo creata/aggiornata.';
 GO
 
 -- ────────────────────────────────────────────────────────────
+--  4. Tabella XPIANO_LOG
+--
+--  Traccia ogni operazione del pianificatore:
+--  PIANIFICATO / SPOSTATO / RIMOSSO / RIORDINATO
+-- ────────────────────────────────────────────────────────────
+IF NOT EXISTS (
+    SELECT 1 FROM sys.tables WHERE name = 'XPIANO_LOG'
+)
+BEGIN
+    CREATE TABLE XPIANO_LOG (
+        IDLOG    INT IDENTITY(1,1) PRIMARY KEY,
+        IDNES    INT          NOT NULL,
+        AZIONE   VARCHAR(20)  NOT NULL,  -- PIANIFICATO / SPOSTATO / RIMOSSO / RIORDINATO
+        MACOD    VARCHAR(20)  NULL,
+        DATPIANO DATE         NULL,
+        SEQPIANO INT          NULL,
+        DTLOG    DATETIME     NOT NULL DEFAULT GETDATE()
+    );
+    CREATE INDEX IX_XPIANO_LOG_IDNES ON XPIANO_LOG (IDNES);
+    CREATE INDEX IX_XPIANO_LOG_DTLOG ON XPIANO_LOG (DTLOG);
+    PRINT 'Tabella XPIANO_LOG creata.';
+END
+ELSE
+    PRINT 'Tabella XPIANO_LOG gia'' presente -- saltata.';
+GO
+
+-- ────────────────────────────────────────────────────────────
 --  NOTA: dbo.ComputeCalendarTime è una funzione standard di
 --  Factory e non va creata né modificata qui.
 --  Configurare in appsettings.json:
@@ -96,11 +123,15 @@ SELECT Oggetto, Stato FROM (
             WHERE object_id = OBJECT_ID('A_NES') AND name = 'XSEQPIANO')
              THEN 'OK' ELSE 'MANCANTE' END AS Stato
     UNION ALL
-    SELECT 2, 'dbo.xComputeTempoResiduo',
+    SELECT 2, 'XPIANO_LOG',
+        CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name='XPIANO_LOG')
+             THEN 'OK' ELSE 'MANCANTE' END
+    UNION ALL
+    SELECT 3, 'dbo.xComputeTempoResiduo',
         CASE WHEN OBJECT_ID('dbo.xComputeTempoResiduo') IS NOT NULL
              THEN 'OK' ELSE 'MANCANTE' END
     UNION ALL
-    SELECT 3, 'dbo.ComputeCalendarTime (Factory standard)',
+    SELECT 4, 'dbo.ComputeCalendarTime (Factory standard)',
         CASE WHEN OBJECT_ID('dbo.ComputeCalendarTime') IS NOT NULL
              THEN 'OK' ELSE 'MANCANTE - verificare installazione Factory' END
 ) x ORDER BY Ord;

@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Publish output
+wwwroot/
+
+# Node / React
+node_modules/
+dist/
+
+# Secrets - NON committare mai
+appsettings.Production.json
+PianificazioneTaglio/appsettings.json
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

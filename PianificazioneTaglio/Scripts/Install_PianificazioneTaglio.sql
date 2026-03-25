@@ -1,40 +1,49 @@
 -- ============================================================
 --  PianificazioneTaglio -- Script di installazione completo
 --  Eseguire su Factory (o sul database target) con utente
---  che abbia permessi CREATE TABLE / CREATE FUNCTION.
+--  che abbia permessi ALTER TABLE / CREATE FUNCTION.
+--  Idempotente: rieseguibile senza danni.
 -- ============================================================
 
 PRINT '=== Inizio installazione PianificazioneTaglio ===';
 GO
 
 -- ────────────────────────────────────────────────────────────
---  1. Tabella PIANO_NESTING
+--  1. Colonna XSEQPIANO su A_NES
+--
+--  Progressivo di sequenza giornaliero assegnato dal pianificatore.
+--  NULL = nesting non ancora pianificato.
 -- ────────────────────────────────────────────────────────────
 IF NOT EXISTS (
-    SELECT 1 FROM sys.tables WHERE name = 'PIANO_NESTING'
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('A_NES') AND name = 'XSEQPIANO'
 )
 BEGIN
-    CREATE TABLE PIANO_NESTING (
-        IDPIANO  INT IDENTITY(1,1) PRIMARY KEY,
-        IDNES    INT          NOT NULL,   -- FK logica verso A_NES.IDNES
-        MACOD    VARCHAR(20)  NOT NULL,   -- Codice macchina
-        DATPIANO DATE         NOT NULL,   -- Giorno pianificato
-        SEQORD   INT          NOT NULL DEFAULT 0,
-        DTINS    DATETIME     NOT NULL DEFAULT GETDATE(),
-        DTMOD    DATETIME     NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT UQ_PIANO_NESTING_IDNES UNIQUE (IDNES)
-    );
-
-    CREATE INDEX IX_PIANO_NESTING_DATA ON PIANO_NESTING (DATPIANO, MACOD);
-
-    PRINT 'Tabella PIANO_NESTING creata.';
+    ALTER TABLE A_NES ADD XSEQPIANO INT NULL;
+    PRINT 'Colonna A_NES.XSEQPIANO aggiunta.';
 END
 ELSE
-    PRINT 'Tabella PIANO_NESTING gia'' esistente -- saltata.';
+    PRINT 'Colonna A_NES.XSEQPIANO gia'' presente -- saltata.';
 GO
 
 -- ────────────────────────────────────────────────────────────
---  2. Funzione xComputeTempoResiduo  (personalizzata)
+--  2. Indice per query piano settimanale
+-- ────────────────────────────────────────────────────────────
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('A_NES') AND name = 'IX_A_NES_PIANO'
+)
+BEGIN
+    CREATE INDEX IX_A_NES_PIANO ON A_NES (DTEXP, MACOD)
+    WHERE XSEQPIANO IS NOT NULL;
+    PRINT 'Indice IX_A_NES_PIANO creato.';
+END
+ELSE
+    PRINT 'Indice IX_A_NES_PIANO gia'' presente -- saltato.';
+GO
+
+-- ────────────────────────────────────────────────────────────
+--  3. Funzione xComputeTempoResiduo  (personalizzabile)
 --
 --  Firma attesa:
 --      dbo.xComputeTempoResiduo(@IdNes INT)
@@ -48,13 +57,9 @@ GO
 --  Personalizzare per tenere conto delle operazioni già tagliate,
 --  tabelle di consuntivo, ecc.
 -- ────────────────────────────────────────────────────────────
-IF NOT EXISTS (
-    SELECT 1 FROM sys.objects
-    WHERE object_id = OBJECT_ID(N'dbo.xComputeTempoResiduo')
-      AND type IN (N'FN', N'IF', N'TF')
-)
-BEGIN
-    EXEC sp_executesql N'
+IF OBJECT_ID('dbo.xComputeTempoResiduo', 'FN') IS NOT NULL
+    DROP FUNCTION dbo.xComputeTempoResiduo;
+GO
 CREATE FUNCTION dbo.xComputeTempoResiduo
 (
     @IdNes INT   -- A_NES.IDNES
@@ -65,19 +70,13 @@ BEGIN
     -- ── IMPLEMENTAZIONE DI DEFAULT ──────────────────────────
     -- Restituisce il tempo totale come SUM(NMRIP * LTIME).
     -- Sostituire con logica di consuntivo per il tempo RESIDUO.
-    DECLARE @Secondi INT;
-
-    SELECT @Secondi = ISNULL(SUM(e.NMRIP * e.LTIME), 0)
-    FROM L_NELM e
-    WHERE e.IDNES = @IdNes;
-
-    RETURN @Secondi;
+    RETURN ISNULL(
+        (SELECT SUM(e.NMRIP * e.LTIME) FROM L_NELM e WHERE e.IDNES = @IdNes),
+        0
+    );
 END
-';
-    PRINT 'Funzione dbo.xComputeTempoResiduo creata.';
-END
-ELSE
-    PRINT 'Funzione dbo.xComputeTempoResiduo gia'' esistente -- saltata.';
+GO
+PRINT 'Funzione dbo.xComputeTempoResiduo creata/aggiornata.';
 GO
 
 -- ────────────────────────────────────────────────────────────
@@ -88,11 +87,13 @@ GO
 -- ────────────────────────────────────────────────────────────
 
 -- ────────────────────────────────────────────────────────────
---  3. Verifica finale
+--  4. Verifica finale
 -- ────────────────────────────────────────────────────────────
 SELECT Oggetto, Stato FROM (
-    SELECT 1 AS Ord, 'PIANO_NESTING' AS Oggetto,
-        CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name='PIANO_NESTING')
+    SELECT 1 AS Ord, 'A_NES.XSEQPIANO' AS Oggetto,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('A_NES') AND name = 'XSEQPIANO')
              THEN 'OK' ELSE 'MANCANTE' END AS Stato
     UNION ALL
     SELECT 2, 'dbo.xComputeTempoResiduo',
@@ -101,7 +102,7 @@ SELECT Oggetto, Stato FROM (
     UNION ALL
     SELECT 3, 'dbo.ComputeCalendarTime (Factory standard)',
         CASE WHEN OBJECT_ID('dbo.ComputeCalendarTime') IS NOT NULL
-             THEN 'OK' ELSE 'MANCANTE - installare Factory' END
+             THEN 'OK' ELSE 'MANCANTE - verificare installazione Factory' END
 ) x ORDER BY Ord;
 
 PRINT '=== Installazione completata ===';

@@ -1,6 +1,6 @@
 -- ============================================================
 --  PianificazioneTaglio -- Script di installazione completo
---  Eseguire su Factory_ADQ (o sul database target) con utente
+--  Eseguire su Factory (o sul database target) con utente
 --  che abbia permessi CREATE TABLE / CREATE FUNCTION.
 -- ============================================================
 
@@ -82,7 +82,7 @@ GO
 
 -- ────────────────────────────────────────────────────────────
 --  NOTA: dbo.ComputeCalendarTime è una funzione standard di
---  Factory ADQ e non va creata né modificata qui.
+--  Factory e non va creata né modificata qui.
 --  Configurare in appsettings.json:
 --      "CapacitaFunzione": "dbo.ComputeCalendarTime"
 -- ────────────────────────────────────────────────────────────
@@ -99,9 +99,9 @@ SELECT Oggetto, Stato FROM (
         CASE WHEN OBJECT_ID('dbo.xComputeTempoResiduo') IS NOT NULL
              THEN 'OK' ELSE 'MANCANTE' END
     UNION ALL
-    SELECT 3, 'dbo.ComputeCalendarTime (Factory ADQ standard)',
+    SELECT 3, 'dbo.ComputeCalendarTime (Factory standard)',
         CASE WHEN OBJECT_ID('dbo.ComputeCalendarTime') IS NOT NULL
-             THEN 'OK' ELSE 'MANCANTE - installare Factory ADQ' END
+             THEN 'OK' ELSE 'MANCANTE - installare Factory' END
 ) x ORDER BY Ord;
 
 PRINT '=== Installazione completata ===';

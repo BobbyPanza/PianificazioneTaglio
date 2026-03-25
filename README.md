@@ -3,10 +3,10 @@
 ## Prerequisiti
 - .NET 10 SDK
 - Node.js 20+
-- SQL Server con database `Factory_ADQ`
+- SQL Server con database `Factory`
 
 ## 1. Crea la tabella di pianificazione
-Eseguire su `Factory_ADQ`:
+Eseguire su `Factory`:
 ```
 Scripts/CreatePianoNesting.sql
 ```
@@ -14,7 +14,7 @@ Scripts/CreatePianoNesting.sql
 ## 2. Connection string
 Editare `PianificazioneTaglio/appsettings.json`:
 ```json
-"DefaultConnection": "Server=localhost;Database=Factory_ADQ;Trusted_Connection=True;TrustServerCertificate=True;"
+"DefaultConnection": "Server=localhost;Database=Factory;Trusted_Connection=True;TrustServerCertificate=True;"
 ```
 
 ## 3. Build del frontend (una tantum, poi ad ogni modifica)

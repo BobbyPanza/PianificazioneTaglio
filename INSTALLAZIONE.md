@@ -48,7 +48,7 @@ Il file si trova nella cartella pubblicata. Modificarlo **prima** di avviare.
 |---|---|
 | `ConnectionStrings.DefaultConnection` | Stringa di connessione a Factory. Con `Trusted_Connection=True` usa l'identità dell'Application Pool IIS. |
 | `PianificazioneTipiFase` | Array di `TFCOD` da mostrare nel selettore tipo fase. Se vuoto `[]`, mostra tutti i tipi con `TFVIS='Y'` in `A_TFA`. |
-| `CapacitaFunzione` | Funzione SQL che riceve `(IDNUM, data)` e restituisce i secondi lavorativi disponibili per quella macchina in quel giorno. Default: `dbo.ComputeCalendarTime` (già presente in Factory ADQ). |
+| `CapacitaFunzione` | Funzione SQL che riceve `(IDNUM, data)` e restituisce i secondi lavorativi disponibili per quella macchina in quel giorno. Default: `dbo.ComputeCalendarTime` (già presente in Factory). |
 | `TempoResiduoFunzione` | Funzione SQL che riceve `(IDNES)` e restituisce i secondi di taglio residui del nesting. Default: `dbo.xComputeTempoResiduo` (creata dallo script, personalizzabile). |
 
 ---

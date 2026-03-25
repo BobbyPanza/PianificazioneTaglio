@@ -1,5 +1,5 @@
 -- ============================================================
--- Setup PianificazioneTaglio su Factory_ADQ
+-- Setup PianificazioneTaglio su Factory
 -- Eseguire una volta sola prima di avviare l'applicazione.
 -- Rieseguibile: tutti i blocchi sono idempotenti.
 -- ============================================================

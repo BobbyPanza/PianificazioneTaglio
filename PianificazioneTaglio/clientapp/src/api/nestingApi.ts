@@ -1,6 +1,6 @@
 import type { CapacitaDto, NestingDto, ParteNestingDto, TipoFaseDto } from '../types';
 
-const BASE = `${import.meta.env.BASE_URL}api/nesting`;
+const BASE = 'api/nesting';
 
 export async function getTipiFase(): Promise<TipoFaseDto[]> {
   const r = await fetch(`${BASE}/tipifase`);

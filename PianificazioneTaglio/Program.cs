@@ -5,7 +5,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddScoped<NestingRepository>();
 
-// In sviluppo serve il proxy verso Vite
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddCors(opt =>
@@ -15,17 +14,21 @@ if (builder.Environment.IsDevelopment())
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
-{
     app.UseCors();
-}
 
-app.UseDefaultFiles();
 app.UseStaticFiles();
-
 app.UseAuthorization();
 app.MapControllers();
 
-// SPA fallback: tutto ciò che non è /api/ viene servito da index.html
-app.MapFallbackToFile("index.html");
+// Serve index.html dinamicamente iniettando <base href="..."> da BasePath in appsettings
+app.MapFallback(async (HttpContext ctx, IConfiguration config) =>
+{
+    var basePath = config["BasePath"] ?? "/";
+    var indexPath = Path.Combine(app.Environment.WebRootPath, "index.html");
+    var html = await File.ReadAllTextAsync(indexPath);
+    html = html.Replace("<head>", $"<head>\n    <base href=\"{basePath}\">");
+    ctx.Response.ContentType = "text/html";
+    await ctx.Response.WriteAsync(html);
+});
 
 app.Run();

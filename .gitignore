@@ -12,6 +12,9 @@ wwwroot/
 node_modules/
 dist/
 
+# Build config locale - non committare
+PianificazioneTaglio/clientapp/.env.production
+
 # Secrets - NON committare mai
 appsettings.Production.json
 PianificazioneTaglio/appsettings.json
